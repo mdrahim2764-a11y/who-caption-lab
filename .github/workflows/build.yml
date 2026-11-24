@@ -17,7 +17,26 @@ jobs:
       - run: mkdir -p www assets && cp index.html www/index.html && cp icon-only.png assets/icon-only.png
       - run: npm install
       - run: npx cap add android
-      - run: npx @capacitor/assets generate --android
+      - name: Set app icon
+        run: |
+          pip install pillow
+          python3 - <<'PY'
+          from PIL import Image, ImageDraw
+          import shutil
+          base = Image.open('icon-only.png').convert('RGBA')
+          res = 'android/app/src/main/res'
+          for n, sz in [('mdpi',48),('hdpi',72),('xhdpi',96),('xxhdpi',144),('xxxhdpi',192)]:
+              d = f'{res}/mipmap-{n}'
+              im = base.resize((sz, sz), Image.LANCZOS)
+              im.save(f'{d}/ic_launcher.png')
+              im.save(f'{d}/ic_launcher_foreground.png')
+              m = Image.new('L', (sz, sz), 0)
+              ImageDraw.Draw(m).ellipse((0, 0, sz-1, sz-1), fill=255)
+              r = im.copy()
+              r.putalpha(m)
+              r.save(f'{d}/ic_launcher_round.png')
+          shutil.rmtree(f'{res}/mipmap-anydpi-v26', ignore_errors=True)
+          PY
       - run: npx cap sync android
       - run: chmod +x android/gradlew && cd android && ./gradlew assembleDebug
       - uses: actions/upload-artifact@v4
